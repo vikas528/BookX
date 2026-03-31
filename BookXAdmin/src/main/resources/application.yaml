@@ -1,0 +1,71 @@
+# ============================================================================
+# BookXAdmin — Admin Service Configuration
+# ============================================================================
+# Manages the master show and seat catalogue. Other services synchronize
+# their local copies from this service.
+# Runs on port 8081 by default.
+# ============================================================================
+
+spring:
+  application:
+    name: bookxshow-admin
+
+  # ── OAuth2 Resource Server (inbound JWT validation) ─────────────────────
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${AUTH_SERVER_ISSUER_URI:http://localhost:9000}
+
+  # ── DataSource ──────────────────────────────────────────────────────────
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/bookingDb}
+    username: ${DB_USERNAME:bookxshow}
+    password: ${DB_PASSWORD:12345678}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}
+
+  # ── SQL Schema Initialization ─────────────────────────────────────────
+  sql:
+    init:
+      mode: always
+
+  # ── JPA / Hibernate ─────────────────────────────────────────────────────
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    show-sql: ${JPA_SHOW_SQL:false}
+    open-in-view: false
+    defer-datasource-initialization: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
+
+# ── Server ──────────────────────────────────────────────────────────────
+server:
+  port: ${SERVER_PORT:8081}
+  shutdown: graceful
+
+# ── Actuator ────────────────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: ${ACTUATOR_HEALTH_DETAILS:when-authorized}
+
+# ── Logging ─────────────────────────────────────────────────────────────
+logging:
+  level:
+    com.bookxshow: ${LOG_LEVEL:INFO}
+    org.springframework.security: ${LOG_LEVEL_SECURITY:INFO}

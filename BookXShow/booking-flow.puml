@@ -1,0 +1,221 @@
+@startuml BookXShow - Seat Booking Flow
+
+' ============================================================================
+' BookXShow — Seat Booking Service Flow Diagrams
+' ============================================================================
+' Generate via:  plantuml booking-flow.puml
+' Online:        https://www.plantuml.com/plantuml/uml
+' ============================================================================
+
+skinparam responseMessageBelowArrow true
+skinparam sequenceArrowThickness 1.5
+skinparam BoxPadding 10
+skinparam ParticipantPadding 15
+skinparam sequenceGroupBorderColor #888888
+
+title **BookXShow — Seat Booking Flow (Lock → Pay → Confirm)**
+
+actor       "Client"            as client
+participant "BookingController"  as ctrl      #LightBlue
+participant "BookingServiceImpl" as svc       #LightGreen
+participant "SeatLockManager"    as lockMgr   #LightYellow
+database    "PostgreSQL"         as db        #WhiteSmoke
+participant "OAuth2TokenService" as oauth     #Lavender
+participant "Payment Gateway\n(External)"    as pay #Salmon
+
+== 1. Book a Seat ==
+
+client -> ctrl : POST /api/v1/bookings\n{ showId, seatId, userId, amount }
+activate ctrl
+
+ctrl -> svc : bookSeat(request)
+activate svc
+
+' ── Step 1: Lock the seat ──────────────────────────────────────────────
+
+svc -> lockMgr : lockSeat(seatId, userId, ttl)
+activate lockMgr
+
+lockMgr -> db : SELECT ... FOR UPDATE\n(PESSIMISTIC_WRITE)
+activate db
+db --> lockMgr : Seat row (locked)
+deactivate db
+
+alt Seat is AVAILABLE
+    lockMgr -> db : UPDATE seat SET status=LOCKED,\nlockedBy=userId, lockExpiry=now()+ttl
+    activate db
+    db --> lockMgr : OK
+    deactivate db
+    lockMgr --> svc : true (lock acquired)
+else Seat is LOCKED or BOOKED
+    lockMgr --> svc : false (unavailable)
+    svc --> ctrl : BookingResponseDto\n{ outcome: SEAT_UNAVAILABLE }
+    ctrl --> client : 200 OK
+end
+deactivate lockMgr
+
+' ── Step 2: Process payment (outside DB transaction) ───────────────────
+
+svc -> oauth : getAccessToken()
+activate oauth
+oauth --> svc : bearerToken
+deactivate oauth
+
+svc -> pay : POST /api/v1/payments/charge\nAuthorization: Bearer {token}\n{ userId, amount }
+activate pay
+
+alt Payment SUCCESS
+    pay --> svc : 200 OK
+    deactivate pay
+
+    ' ── Step 3a: Confirm booking ───────────────────────────────────────
+
+    svc -> lockMgr : confirmAndPersistBooking\n(seatId, userId, amount, txnId)
+    activate lockMgr
+
+    lockMgr -> db : SELECT seat FOR UPDATE\n(verify still LOCKED by userId)
+    activate db
+    db --> lockMgr : Seat row
+    deactivate db
+
+    alt Lock still valid
+        lockMgr -> db : UPDATE seat SET status=BOOKED
+        activate db
+        db --> lockMgr : OK
+        deactivate db
+
+        lockMgr -> db : INSERT INTO booking (...)
+        activate db
+        db --> lockMgr : Booking row
+        deactivate db
+
+        lockMgr --> svc : Optional<Booking> (present)
+        deactivate lockMgr
+        svc --> ctrl : BookingResponseDto\n{ outcome: BOOKED, bookingReference }
+        ctrl --> client : **201 Created**
+    else Lock expired
+        lockMgr --> svc : Optional.empty()
+        svc --> ctrl : BookingResponseDto\n{ outcome: LOCK_EXPIRED }
+        ctrl --> client : 200 OK
+    end
+
+else Payment FAILURE
+    pay --> svc : 4xx / 5xx
+    deactivate pay
+
+    ' ── Step 3b: Release seat ──────────────────────────────────────────
+
+    svc -> lockMgr : releaseSeat(seatId, userId)
+    activate lockMgr
+    lockMgr -> db : UPDATE seat SET status=AVAILABLE,\nlockedBy=null, lockExpiry=null
+    activate db
+    db --> lockMgr : OK
+    deactivate db
+    lockMgr --> svc : done
+    deactivate lockMgr
+    svc --> ctrl : BookingResponseDto\n{ outcome: PAYMENT_FAILED }
+    ctrl --> client : 200 OK
+
+else Payment TIMEOUT
+    pay --> svc : RestClientException
+    svc -> lockMgr : releaseSeat(seatId, userId)
+    activate lockMgr
+    lockMgr -> db : UPDATE seat SET status=AVAILABLE
+    activate db
+    db --> lockMgr : OK
+    deactivate db
+    lockMgr --> svc : done
+    deactivate lockMgr
+    svc --> ctrl : BookingResponseDto\n{ outcome: LOCK_EXPIRED }
+    ctrl --> client : 200 OK
+end
+
+deactivate svc
+deactivate ctrl
+
+@enduml
+
+' ============================================================================
+
+@startuml BookXShow - Admin Sync Flow
+
+skinparam responseMessageBelowArrow true
+skinparam sequenceArrowThickness 1.5
+
+title **BookXShow — Admin Show Sync Flow**
+
+actor       "Admin / Webhook"      as admin
+participant "BookingController"     as ctrl      #LightBlue
+participant "RestAdminServiceClient" as admClient #PaleGreen
+participant "OAuth2TokenService"    as oauth     #Lavender
+participant "Admin Service\n(External)" as extAdmin #Salmon
+database    "PostgreSQL"           as db        #WhiteSmoke
+
+admin -> ctrl : POST /api/v1/admin/shows/{externalShowId}/sync
+activate ctrl
+
+ctrl -> admClient : syncShow(externalShowId)
+activate admClient
+
+' ── Fetch show details ─────────────────────────────────────────────────
+
+admClient -> oauth : getAccessToken()
+activate oauth
+oauth --> admClient : bearerToken
+deactivate oauth
+
+admClient -> extAdmin : GET /api/v1/shows/{id}\nAuthorization: Bearer {token}
+activate extAdmin
+extAdmin --> admClient : ShowDto { name, venue, dateTime, totalSeats }
+deactivate extAdmin
+
+' ── Fetch seats layout ─────────────────────────────────────────────────
+
+admClient -> extAdmin : GET /api/v1/shows/{id}/seats\nAuthorization: Bearer {token}
+activate extAdmin
+extAdmin --> admClient : SeatStatusDto[] { seatNumber, ...}
+deactivate extAdmin
+
+' ── Upsert into local DB (single transaction) ─────────────────────────
+
+admClient -> db : findByExternalShowId\n→ upsert Show
+activate db
+db --> admClient : Show (saved)
+deactivate db
+
+loop for each seat DTO
+    admClient -> db : findBySeatNumberAndShowId\n→ insert if not exists
+    activate db
+    db --> admClient : Seat (saved)
+    deactivate db
+end
+
+admClient --> ctrl : void (success)
+deactivate admClient
+
+ctrl --> admin : 200 OK\n"Show {id} synced successfully"
+deactivate ctrl
+
+@enduml
+
+' ============================================================================
+
+@startuml BookXShow - Lock Expiry Sweep
+
+skinparam responseMessageBelowArrow true
+skinparam sequenceArrowThickness 1.5
+
+title **BookXShow — Seat Lock Expiry Sweep (Scheduled)**
+
+participant "SeatLockExpiryScheduler" as sched #LightYellow
+database    "PostgreSQL"              as db    #WhiteSmoke
+
+loop Every lockSweepIntervalMs (default 5 s)
+    sched -> db : UPDATE seat SET status=AVAILABLE,\nlockedBy=null, lockExpiry=null\nWHERE status='LOCKED'\nAND lockExpiry < now()
+    activate db
+    db --> sched : {count} rows updated
+    deactivate db
+    note right of sched : Logs count if > 0
+end
+
+@enduml

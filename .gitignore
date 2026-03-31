@@ -1,0 +1,81 @@
+# ============================================================================
+# BookX — Root .gitignore (Gradle multi-project + React UI monorepo)
+# ============================================================================
+
+# ── Gradle (all sub-projects) ────────────────────────────────────────────────
+**/.gradle/
+**/build/
+# Keep all gradle-wrapper JARs so anyone can build without pre-installing Gradle
+!**/gradle/wrapper/gradle-wrapper.jar
+
+# ── Node / UI ────────────────────────────────────────────────────────────────
+BookXUI/node_modules/
+BookXUI/dist/
+BookXUI/dist-ssr/
+BookXUI/*.local
+
+# ── Java compiled artifacts ──────────────────────────────────────────────────
+**/*.class
+**/*.jar
+# Allow the wrapper JAR(s), overrides the *.jar rule above
+!**/gradle/wrapper/gradle-wrapper.jar
+**/*.war
+**/*.ear
+
+# ── Spring Boot / application secrets ───────────────────────────────────────
+.env
+.env.*
+application-local.properties
+application-local.yaml
+**/src/main/resources/application-local.*
+**/src/main/resources/keystore.*
+**/src/main/resources/*.p12
+**/src/main/resources/*.jks
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+**/logs/
+
+# ── IDE — IntelliJ IDEA ──────────────────────────────────────────────────────
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# ── IDE — Eclipse ─────────────────────────────────────────────────────────────
+.classpath
+.project
+.settings/
+
+# IntelliJ & Eclipse compiled output (matches bin/ in any sub-project)
+**/bin/
+
+# ── IDE — VS Code ─────────────────────────────────────────────────────────────
+.vscode/
+
+# ── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*~
+$RECYCLE.BIN/
+
+# ── Docker (runtime artifacts, not config files) ─────────────────────────────
+# Compose override files with local secrets — do NOT commit these
+docker-compose.override.yml
+docker-compose.local.yml
+docker-compose.override.yaml
+docker-compose.local.yaml
+
+# ── Test & coverage reports ───────────────────────────────────────────────────
+# (already inside build/ but listed explicitly for clarity)
+**/build/reports/
+**/build/jacoco/
+
+# ── Misc ─────────────────────────────────────────────────────────────────────
+result.txt
+*.tmp
+*.bak

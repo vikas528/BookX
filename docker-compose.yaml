@@ -1,0 +1,186 @@
+# ============================================================================
+# BookX — Full Stack Docker Compose
+# ============================================================================
+# Boot order (each waits for the previous to be healthy):
+#   postgres → auth-server → gateway → admin-service → booking-service → ui
+#
+# Services:
+#   0. postgres        — PostgreSQL 16 shared database
+#   1. auth-server     — Spring Authorization Server  (port 9000)
+#   2. gateway         — Spring Cloud Gateway         (port 8443)
+#   3. admin-service   — BookXAdmin service           (port 8081)
+#   4. booking-service — BookXShow booking service    (port 8080)
+#   5. ui              — React/Vite UI via nginx      (port 5173 → 80)
+#
+# Usage:
+#   docker compose up -d              # start everything
+#   docker compose up -d --build      # rebuild images then start
+#   docker compose logs -f            # follow all logs
+#   docker compose logs -f ui         # follow a single service
+#   docker compose down -v            # stop and remove volumes
+# ============================================================================
+
+services:
+
+  # ── 0. PostgreSQL ─────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: bookxshow-postgres
+    environment:
+      POSTGRES_DB: bookingDb
+      POSTGRES_USER: bookxshow
+      POSTGRES_PASSWORD: 12345678
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bookxshow -d bookingDb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  # ── 1. Authorization Server ───────────────────────────────────────────────
+  auth-server:
+    build:
+      context: ./BookXAuthServer
+      dockerfile: Dockerfile
+    container_name: bookxshow-auth-server
+    ports:
+      - "9000:9000"
+    environment:
+      AUTH_SERVER_PORT: 9000
+      DB_URL: jdbc:postgresql://postgres:5432/bookingDb
+      DB_USERNAME: bookxshow
+      DB_PASSWORD: 12345678
+      AUTH_ISSUER_URI: http://auth-server:9000
+      GATEWAY_CLIENT_SECRET: gateway-secret
+      SERVICE_CLIENT_SECRET: service-secret
+      M2M_CLIENT_SECRET: m2m-secret
+      ADMIN_CLIENT_SECRET: admin-secret
+      GATEWAY_REDIRECT_URI: http://gateway:8443/login/oauth2/code/bookxshow-auth-server
+      GATEWAY_POST_LOGOUT_URI: http://gateway:8443/
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9000/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
+    restart: unless-stopped
+
+  # ── 2. API Gateway ────────────────────────────────────────────────────────
+  gateway:
+    build:
+      context: ./BookXGateway
+      dockerfile: Dockerfile
+    container_name: bookxshow-gateway
+    ports:
+      - "8443:8443"
+    environment:
+      GATEWAY_PORT: 8443
+      AUTH_SERVER_ISSUER_URI: http://auth-server:9000
+      AUTH_SERVER_URL: http://auth-server:9000
+      GATEWAY_CLIENT_SECRET: gateway-secret
+      BOOKING_SERVICE_URL: http://booking-service:8080
+      ADMIN_SERVICE_URL: http://admin-service:8081
+      PAYMENT_SERVICE_URL: http://payment-service:8082
+    depends_on:
+      auth-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8443/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
+    restart: unless-stopped
+
+  # ── 3. Admin Service (BookXAdmin) ─────────────────────────────────────────
+  admin-service:
+    build:
+      context: ./BookXAdmin
+      dockerfile: Dockerfile
+    container_name: bookxshow-admin
+    ports:
+      - "8081:8081"
+    environment:
+      SERVER_PORT: 8081
+      DB_URL: jdbc:postgresql://postgres:5432/bookingDb
+      DB_USERNAME: bookxshow
+      DB_PASSWORD: 12345678
+      AUTH_SERVER_ISSUER_URI: http://auth-server:9000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
+    restart: unless-stopped
+
+  # ── 4. Booking Service (BookXShow) ────────────────────────────────────────
+  booking-service:
+    build:
+      context: ./BookXShow
+      dockerfile: Dockerfile
+    container_name: bookxshow-booking
+    ports:
+      - "8080:8080"
+    environment:
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://postgres:5432/bookingDb
+      DB_USERNAME: bookxshow
+      DB_PASSWORD: 12345678
+      AUTH_SERVER_ISSUER_URI: http://auth-server:9000
+      AUTH_TOKEN_URL: http://auth-server:9000/oauth2/token
+      AUTH_CLIENT_ID: bookxshow-service
+      AUTH_CLIENT_SECRET: service-secret
+      AUTH_SCOPE: "bookxshow.read bookxshow.write"
+      ADMIN_SERVICE_URL: http://admin-service:8081
+      PAYMENT_GATEWAY_URL: http://payment-service:8082
+    depends_on:
+      postgres:
+        condition: service_healthy
+      admin-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
+    restart: unless-stopped
+
+  # ── 5. UI — React + nginx ─────────────────────────────────────────────────
+  # Serves static assets and proxies /api/, /bookxshow/, /oauth2/, /login
+  # paths to the Gateway on the internal Docker network.
+  # Accessible at http://localhost:5173 on the host.
+  ui:
+    build:
+      context: ./BookXUI
+      dockerfile: Dockerfile
+    container_name: bookxshow-ui
+    ports:
+      - "5173:80"
+    depends_on:
+      booking-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  pgdata:

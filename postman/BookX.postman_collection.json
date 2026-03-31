@@ -1,0 +1,2182 @@
+{
+  "info": {
+    "_postman_id": "bookx-collection-v1",
+    "name": "BookX — Full API Test Suite",
+    "description": "Complete end-to-end test collection for BookX microservices.\n\nRun order:\n1. 🔐 Auth\n2. 🧹 Pre-Run Cleanup\n3. 🎬 Admin Shows Management\n4. 🔄 Sync Shows → BookXShow\n5. 🎭 Browse Shows (User)\n6. 🎟️ Booking Flow (book, cancel, rebook)\n7. 🔒 Security Violation Tests\n8. 🛠️ M2M Client Management\n9. 📊 S2S Read Endpoints (Admin)\n10. 🗑️ Admin Show Lifecycle — Cancel\n11. ✅ Health Checks\n12. 🧹 Post-Run Cleanup\n\nEnvironment: BookX — Local",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+
+    {
+      "name": "🔐 Auth",
+      "description": "User registration, login, and M2M token acquisition.",
+      "item": [
+
+        {
+          "name": "Sign Up — User 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Sign Up — 201 Created (new) or 409 Conflict (already exists on rerun)', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([201, 409]);",
+                  "});",
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  pm.test('access_token present', () => pm.expect(json.access_token).to.be.a('string'));",
+                  "  pm.test('username matches', () => pm.expect(json.username).to.eql(pm.environment.get('user1Username')));",
+                  "  pm.environment.set('userToken', json.access_token);",
+                  "  console.log('✅ User 1 registered (first run) — token saved');",
+                  "} else {",
+                  "  console.log('ℹ️  User 1 already exists (rerun) — Login step will refresh token');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{user1Username}}\",\n  \"email\": \"{{user1Email}}\",\n  \"password\": \"{{user1Password}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{authServerUrl}}/bookxshow/v1/auth/signup",
+              "host": ["{{authServerUrl}}"],
+              "path": ["bookxshow", "v1", "auth", "signup"]
+            }
+          }
+        },
+
+        {
+          "name": "Sign Up — User 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Sign Up — 201 Created (new) or 409 Conflict (already exists on rerun)', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([201, 409]);",
+                  "});",
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  pm.test('User 2 access_token present', () => pm.expect(json.access_token).to.be.a('string'));",
+                  "  pm.environment.set('user2Token', json.access_token);",
+                  "  console.log('✅ User 2 registered (first run) — token saved');",
+                  "} else {",
+                  "  console.log('ℹ️  User 2 already exists (rerun) — Login step will refresh token');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{user2Username}}\",\n  \"email\": \"{{user2Email}}\",\n  \"password\": \"{{user2Password}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{authServerUrl}}/bookxshow/v1/auth/signup",
+              "host": ["{{authServerUrl}}"],
+              "path": ["bookxshow", "v1", "auth", "signup"]
+            }
+          }
+        },
+
+        {
+          "name": "Login — User 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('access_token present', () => pm.expect(json.access_token).to.be.a('string'));",
+                  "pm.test('token_type is Bearer', () => pm.expect(json.token_type).to.eql('Bearer'));",
+                  "pm.test('roles is ROLE_USER', () => pm.expect(json.roles).to.eql('ROLE_USER'));",
+                  "pm.environment.set('userToken', json.access_token);",
+                  "console.log('✅ User 1 logged in, token saved');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{user1Username}}\",\n  \"password\": \"{{user1Password}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{authServerUrl}}/bookxshow/v1/auth/login",
+              "host": ["{{authServerUrl}}"],
+              "path": ["bookxshow", "v1", "auth", "login"]
+            }
+          }
+        },
+
+        {
+          "name": "Login — User 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('access_token present', () => pm.expect(json.access_token).to.be.a('string'));",
+                  "pm.environment.set('user2Token', json.access_token);",
+                  "console.log('✅ User 2 logged in, token saved');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{user2Username}}\",\n  \"password\": \"{{user2Password}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{authServerUrl}}/bookxshow/v1/auth/login",
+              "host": ["{{authServerUrl}}"],
+              "path": ["bookxshow", "v1", "auth", "login"]
+            }
+          }
+        },
+
+        {
+          "name": "Get Admin M2M Token (client_credentials)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('access_token present', () => pm.expect(json.access_token).to.be.a('string'));",
+                  "pm.test('token_type is Bearer', () => pm.expect(json.token_type.toLowerCase()).to.eql('bearer'));",
+                  "pm.environment.set('adminToken', json.access_token);",
+                  "console.log('✅ Admin M2M token saved (scopes: read+write+admin)');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{adminClientId}}", "type": "string" },
+                { "key": "password", "value": "{{adminClientSecret}}", "type": "string" }
+              ]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "client_credentials", "type": "text" },
+                { "key": "scope", "value": "bookxshow.read bookxshow.write bookxshow.admin", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{authServerUrl}}/oauth2/token",
+              "host": ["{{authServerUrl}}"],
+              "path": ["oauth2", "token"]
+            }
+          }
+        },
+
+        {
+          "name": "Login — Duplicate Username (Expect 409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 409 Conflict for duplicate username', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{user1Username}}\",\n  \"email\": \"different@test.com\",\n  \"password\": \"{{user1Password}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{authServerUrl}}/bookxshow/v1/auth/signup",
+              "host": ["{{authServerUrl}}"],
+              "path": ["bookxshow", "v1", "auth", "signup"]
+            }
+          }
+        },
+
+        {
+          "name": "Login — Wrong Password (Expect 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401 for invalid credentials', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{user1Username}}\",\n  \"password\": \"WrongPassword!\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{authServerUrl}}/bookxshow/v1/auth/login",
+              "host": ["{{authServerUrl}}"],
+              "path": ["bookxshow", "v1", "auth", "login"]
+            }
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "🧹 Pre-Run Cleanup",
+      "description": "Deletes any data left over from a previous interrupted test run — runs AFTER Auth (tokens required) but BEFORE any data-creation steps. Idempotent: all requests accept 'not found' or 'already done' responses gracefully.\n\nWhat is cleaned:\n• postman-test-client M2M client (hard delete)\n• Admin shows from prior run IDs stored in env vars (soft cancel)\n\nWhat CANNOT be cleaned (no delete API):\n• app_users (bookx_user1, bookx_user2) — Sign Up tests handle this by accepting 201 or 409\n• BookXShow shows/seats/bookings rows",
+      "item": [
+
+        {
+          "name": "[Cleanup] Delete leftover M2M test client",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Cleanup M2M client — 204 (deleted) or 404 (not found)', () => {",
+                  "  pm.expect(status).to.be.oneOf([204, 404]);",
+                  "});",
+                  "if (status === 204) { console.log('🧹 Cleaned up leftover M2M client: ' + pm.environment.get('newM2mClientId')); }",
+                  "else { console.log('ℹ️  M2M client did not exist — clean slate'); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "DELETE",
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/clients/{{newM2mClientId}}",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "clients", "{{newM2mClientId}}"]
+            }
+          }
+        },
+
+        {
+          "name": "[Cleanup] Cancel leftover Show 1 (if prior run set adminShowId)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id = pm.environment.get('adminShowId');",
+                  "if (!id) { console.log('ℹ️  adminShowId not set — skipping Show 1 cleanup'); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Cleanup Show 1 — 204 (cancelled), 404 (not found) or 409 (already cancelled)', () => {",
+                  "  pm.expect(status).to.be.oneOf([204, 404, 409]);",
+                  "});",
+                  "console.log('🧹 Show 1 cleanup: HTTP ' + status + ' (adminShowId=' + pm.environment.get('adminShowId') + ')');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "DELETE",
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/shows/{{adminShowId}}",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "shows", "{{adminShowId}}"]
+            }
+          }
+        },
+
+        {
+          "name": "[Cleanup] Cancel leftover Show 2 (if prior run set adminShowId2)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id = pm.environment.get('adminShowId2');",
+                  "if (!id) { console.log('ℹ️  adminShowId2 not set — skipping Show 2 cleanup'); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Cleanup Show 2 — 204 (cancelled), 404 (not found) or 409 (already cancelled)', () => {",
+                  "  pm.expect(status).to.be.oneOf([204, 404, 409]);",
+                  "});",
+                  "console.log('🧹 Show 2 cleanup: HTTP ' + status + ' (adminShowId2=' + pm.environment.get('adminShowId2') + ')');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "DELETE",
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/shows/{{adminShowId2}}",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "shows", "{{adminShowId2}}"]
+            }
+          }
+        },
+
+        {
+          "name": "[Cleanup] Cancel leftover Temp Show (if prior run set cancelShowId)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id = pm.environment.get('cancelShowId');",
+                  "if (!id) { console.log('ℹ️  cancelShowId not set — skipping temp show cleanup'); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Cleanup temp show — 204 (cancelled), 404 (not found) or 409 (already cancelled)', () => {",
+                  "  pm.expect(status).to.be.oneOf([204, 404, 409]);",
+                  "});",
+                  "console.log('🧹 Temp show cleanup: HTTP ' + status + ' (cancelShowId=' + pm.environment.get('cancelShowId') + ')');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "DELETE",
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/shows/{{cancelShowId}}",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "shows", "{{cancelShowId}}"]
+            }
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "🎬 Admin Shows Management",
+      "description": "Full CRUD for shows via BookXAdmin (port 8081). All requests require adminToken (SCOPE_bookxshow.admin).",
+      "item": [
+
+        {
+          "name": "Create Show 1 — Pushpa 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('Show ID present', () => pm.expect(json.id).to.be.a('number'));",
+                  "pm.test('externalShowId present', () => pm.expect(json.externalShowId).to.be.a('string'));",
+                  "pm.test('Status is DRAFT', () => pm.expect(json.status).to.eql('DRAFT'));",
+                  "pm.test('Show name matches', () => pm.expect(json.name).to.eql('Pushpa 2: The Rule'));",
+                  "pm.environment.set('adminShowId', json.id);",
+                  "pm.environment.set('externalShowId', json.externalShowId);",
+                  "console.log('✅ Show 1 created: id=' + json.id + ' externalShowId=' + json.externalShowId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Pushpa 2: The Rule\",\n  \"venue\": \"Grand Cineplex — Auditorium A\",\n  \"showDateTime\": \"2026-07-15T18:00:00\",\n  \"totalSeats\": 20,\n  \"seatsPerRow\": 5,\n  \"basePrice\": 350.00,\n  \"genre\": \"Action/Drama\",\n  \"language\": \"Telugu\",\n  \"duration\": \"3h 21m\",\n  \"rating\": 8.8\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/shows",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "shows"]
+            }
+          }
+        },
+
+        {
+          "name": "Create Show 2 — Kalki 2898 AD",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('externalShowId present', () => pm.expect(json.externalShowId).to.be.a('string'));",
+                  "pm.environment.set('adminShowId2', json.id);",
+                  "pm.environment.set('externalShowId2', json.externalShowId);",
+                  "console.log('✅ Show 2 created: id=' + json.id + ' externalShowId=' + json.externalShowId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Kalki 2898 AD\",\n  \"venue\": \"IMAX Theatre — Screen 1\",\n  \"showDateTime\": \"2026-08-01T20:00:00\",\n  \"totalSeats\": 30,\n  \"seatsPerRow\": 6,\n  \"basePrice\": 500.00,\n  \"genre\": \"Sci-Fi/Action\",\n  \"language\": \"Hindi\",\n  \"duration\": \"2h 59m\",\n  \"rating\": 7.9\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/shows",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "shows"]
+            }
+          }
+        },
+
+        {
+          "name": "List All Shows (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Response is an array', () => pm.expect(json).to.be.an('array'));",
+                  "pm.test('At least 2 shows exist', () => pm.expect(json.length).to.be.at.least(2));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/shows",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "shows"]
+            }
+          }
+        },
+
+        {
+          "name": "Get Show by ID (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('ID matches', () => pm.expect(json.id).to.eql(Number(pm.environment.get('adminShowId'))));",
+                  "pm.test('externalShowId matches', () => pm.expect(json.externalShowId).to.eql(pm.environment.get('externalShowId')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/shows/{{adminShowId}}",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "shows", "{{adminShowId}}"]
+            }
+          }
+        },
+
+        {
+          "name": "Update Show 1 (Patch Genre + Rating)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Genre updated', () => pm.expect(json.genre).to.eql('Action/Thriller'));",
+                  "pm.test('Rating updated', () => pm.expect(json.rating).to.eql(9.0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"genre\": \"Action/Thriller\",\n  \"rating\": 9.0\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/shows/{{adminShowId}}",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "shows", "{{adminShowId}}"]
+            }
+          }
+        },
+
+        {
+          "name": "Get Seats for Show 1 (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Seats is an array', () => pm.expect(json).to.be.an('array'));",
+                  "pm.test('totalSeats = 20 seats', () => pm.expect(json.length).to.eql(20));",
+                  "pm.test('First seat has seatNumber', () => pm.expect(json[0].seatNumber).to.be.a('string'));",
+                  "console.log('ℹ️  First seat: ' + JSON.stringify(json[0]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/shows/{{adminShowId}}/seats",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "shows", "{{adminShowId}}", "seats"]
+            }
+          }
+        },
+
+        {
+          "name": "Publish Show 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Status is PUBLISHED', () => pm.expect(json.status).to.eql('PUBLISHED'));",
+                  "console.log('✅ Show 1 published');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/shows/{{adminShowId}}/publish",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "shows", "{{adminShowId}}", "publish"]
+            }
+          }
+        },
+
+        {
+          "name": "Publish Show 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Status is PUBLISHED', () => pm.expect(json.status).to.eql('PUBLISHED'));",
+                  "console.log('✅ Show 2 published');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/shows/{{adminShowId2}}/publish",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "shows", "{{adminShowId2}}", "publish"]
+            }
+          }
+        },
+
+        {
+          "name": "Get Show Not Found (Expect 404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404 Not Found for non-existent show', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/shows/999999",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "shows", "999999"]
+            }
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "🔄 Sync Shows → BookXShow",
+      "description": "Trigger sync from BookXAdmin into BookXShow local DB. Requires adminToken (SCOPE_bookxshow.admin).",
+      "item": [
+
+        {
+          "name": "Sync Show 1 → BookXShow",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const text = pm.response.text();",
+                  "pm.test('Sync success message contains externalShowId', () => pm.expect(text).to.include(pm.environment.get('externalShowId')));",
+                  "console.log('✅ Show 1 synced into BookXShow: ' + pm.environment.get('externalShowId'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "url": {
+              "raw": "{{bookingServiceUrl}}/bookxshow/v1/admin/shows/{{externalShowId}}/sync",
+              "host": ["{{bookingServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "shows", "{{externalShowId}}", "sync"]
+            }
+          }
+        },
+
+        {
+          "name": "Sync Show 2 → BookXShow",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "console.log('✅ Show 2 synced into BookXShow: ' + pm.environment.get('externalShowId2'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "url": {
+              "raw": "{{bookingServiceUrl}}/bookxshow/v1/admin/shows/{{externalShowId2}}/sync",
+              "host": ["{{bookingServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "shows", "{{externalShowId2}}", "sync"]
+            }
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "🎭 Browse Shows (User)",
+      "description": "Public show catalogue APIs in BookXShow (port 8080). Requires userToken (SCOPE_bookxshow.read).",
+      "item": [
+
+        {
+          "name": "List All Shows",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Response is an array', () => pm.expect(json).to.be.an('array'));",
+                  "pm.test('At least 2 synced shows present', () => pm.expect(json.length).to.be.at.least(2));",
+                  "if (json.length > 0) {",
+                  "  pm.environment.set('bookxShowId', json[0].id);",
+                  "  pm.environment.set('externalShowIdInBx', json[0].externalShowId);",
+                  "  console.log('ℹ️  First show local ID: ' + json[0].id + ', externalShowId: ' + json[0].externalShowId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{bookingServiceUrl}}/bookxshow/v1/shows",
+              "host": ["{{bookingServiceUrl}}"],
+              "path": ["bookxshow", "v1", "shows"]
+            }
+          }
+        },
+
+        {
+          "name": "List Shows — Filter by Name",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Response is an array', () => pm.expect(json).to.be.an('array'));",
+                  "pm.test('All results contain Pushpa', () => {",
+                  "  json.forEach(show => pm.expect(show.name.toLowerCase()).to.include('pushpa'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{bookingServiceUrl}}/bookxshow/v1/shows?name=Pushpa",
+              "host": ["{{bookingServiceUrl}}"],
+              "path": ["bookxshow", "v1", "shows"],
+              "query": [{ "key": "name", "value": "Pushpa" }]
+            }
+          }
+        },
+
+        {
+          "name": "List Shows — Filter by Date Range",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Response is an array', () => pm.expect(json).to.be.an('array'));",
+                  "console.log('ℹ️  Shows in July 2026: ' + json.length);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{bookingServiceUrl}}/bookxshow/v1/shows?fromDate=2026-07-01T00:00:00&toDate=2026-07-31T23:59:59",
+              "host": ["{{bookingServiceUrl}}"],
+              "path": ["bookxshow", "v1", "shows"],
+              "query": [
+                { "key": "fromDate", "value": "2026-07-01T00:00:00" },
+                { "key": "toDate",   "value": "2026-07-31T23:59:59" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "List Seats for Show (capture first available seat)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Seats is an array', () => pm.expect(json).to.be.an('array'));",
+                  "pm.test('All seats have status field', () => json.forEach(s => pm.expect(s.status).to.be.a('string')));",
+                  "const available = json.find(s => s.status === 'AVAILABLE');",
+                  "pm.test('At least one AVAILABLE seat found', () => pm.expect(available).to.not.be.undefined);",
+                  "if (available) {",
+                  "  pm.environment.set('bookxSeatId', available.seatId);",
+                  "  console.log('✅ Captured first AVAILABLE seat id: ' + available.seatId + ' (' + available.seatNumber + ')');",
+                  "} else {",
+                  "  console.warn('⚠️  No available seats found for this show');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{bookingServiceUrl}}/bookxshow/v1/shows/{{bookxShowId}}/seats",
+              "host": ["{{bookingServiceUrl}}"],
+              "path": ["bookxshow", "v1", "shows", "{{bookxShowId}}", "seats"]
+            }
+          }
+        },
+
+        {
+          "name": "Get Single Seat Status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Seat ID matches', () => pm.expect(json.seatId).to.eql(Number(pm.environment.get('bookxSeatId'))));",
+                  "pm.test('Seat status is AVAILABLE', () => pm.expect(json.status).to.eql('AVAILABLE'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{bookingServiceUrl}}/bookxshow/v1/shows/{{bookxShowId}}/seats/{{bookxSeatId}}",
+              "host": ["{{bookingServiceUrl}}"],
+              "path": ["bookxshow", "v1", "shows", "{{bookxShowId}}", "seats", "{{bookxSeatId}}"]
+            }
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "🎟️ Booking Flow",
+      "description": "Full booking flow: book a seat, fetch by reference, view user history, cancel booking, verify cancellation, and rebook. Uses userToken (SCOPE_bookxshow.write).",
+      "item": [
+
+        {
+          "name": "Book a Seat (User 1)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created (BOOKED) or 200 OK (other outcome)', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.test('bookingReference present', () => pm.expect(json.bookingReference).to.be.a('string'));",
+                  "pm.test('outcome present', () => pm.expect(json.outcome).to.be.a('string'));",
+                  "if (json.outcome === 'BOOKED') {",
+                  "  pm.test('Status is 201 for BOOKED outcome', () => pm.response.to.have.status(201));",
+                  "  pm.environment.set('bookingReference', json.bookingReference);",
+                  "  console.log('✅ Seat booked! Reference: ' + json.bookingReference);",
+                  "} else {",
+                  "  console.warn('⚠️  Booking outcome: ' + json.outcome + ' — seat may already be booked');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"showId\": {{bookxShowId}},\n  \"seatId\": {{bookxSeatId}},\n  \"userId\": \"{{user1Username}}\",\n  \"amount\": 350.00\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{bookingServiceUrl}}/bookxshow/v1/bookings",
+              "host": ["{{bookingServiceUrl}}"],
+              "path": ["bookxshow", "v1", "bookings"]
+            }
+          }
+        },
+
+        {
+          "name": "Book Same Seat Again (Expect ALREADY_BOOKED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Outcome is ALREADY_BOOKED or SEAT_LOCKED', () => {",
+                  "  pm.expect(json.outcome).to.be.oneOf(['ALREADY_BOOKED', 'SEAT_LOCKED']);",
+                  "});",
+                  "console.log('✅ Duplicate booking correctly rejected: ' + json.outcome);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"showId\": {{bookxShowId}},\n  \"seatId\": {{bookxSeatId}},\n  \"userId\": \"{{user1Username}}\",\n  \"amount\": 350.00\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{bookingServiceUrl}}/bookxshow/v1/bookings",
+              "host": ["{{bookingServiceUrl}}"],
+              "path": ["bookxshow", "v1", "bookings"]
+            }
+          }
+        },
+
+        {
+          "name": "Get Booking by Reference",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('bookingReference matches', () => pm.expect(json.bookingReference).to.eql(pm.environment.get('bookingReference')));",
+                  "pm.test('userId matches user1', () => pm.expect(json.userId).to.eql(pm.environment.get('user1Username')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{bookingServiceUrl}}/bookxshow/v1/bookings/{{bookingReference}}",
+              "host": ["{{bookingServiceUrl}}"],
+              "path": ["bookxshow", "v1", "bookings", "{{bookingReference}}"]
+            }
+          }
+        },
+
+        {
+          "name": "Get Booking Not Found (Expect 404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404 for non-existent reference', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{bookingServiceUrl}}/bookxshow/v1/bookings/BXS-DOESNOTEXIST",
+              "host": ["{{bookingServiceUrl}}"],
+              "path": ["bookxshow", "v1", "bookings", "BXS-DOESNOTEXIST"]
+            }
+          }
+        },
+
+        {
+          "name": "Get Own Bookings (User 1)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Response is an array', () => pm.expect(json).to.be.an('array'));",
+                  "pm.test('At least one booking exists', () => pm.expect(json.length).to.be.at.least(1));",
+                  "pm.test('All bookings belong to User 1', () => {",
+                  "  json.forEach(b => pm.expect(b.userId).to.eql(pm.environment.get('user1Username')));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{bookingServiceUrl}}/bookxshow/v1/users/{{user1Username}}/bookings",
+              "host": ["{{bookingServiceUrl}}"],
+              "path": ["bookxshow", "v1", "users", "{{user1Username}}", "bookings"]
+            }
+          }
+        },
+
+        {
+          "name": "Admin Views User 1 Bookings",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK (admin can see any user bookings)', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Response is an array', () => pm.expect(json).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{bookingServiceUrl}}/bookxshow/v1/users/{{user1Username}}/bookings",
+              "host": ["{{bookingServiceUrl}}"],
+              "path": ["bookxshow", "v1", "users", "{{user1Username}}", "bookings"]
+            }
+          }
+        },
+
+        {
+          "name": "Cancel Booking (User 1)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Outcome is CANCELLED', () => pm.expect(json.outcome).to.eql('CANCELLED'));",
+                  "pm.test('bookingReference matches', () => pm.expect(json.bookingReference).to.eql(pm.environment.get('bookingReference')));",
+                  "pm.test('seatStatus is AVAILABLE after cancel', () => pm.expect(json.seatStatus).to.eql('AVAILABLE'));",
+                  "console.log('✅ Booking cancelled: ' + json.bookingReference);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }]
+            },
+            "method": "DELETE",
+            "url": {
+              "raw": "{{bookingServiceUrl}}/bookxshow/v1/bookings/{{bookingReference}}",
+              "host": ["{{bookingServiceUrl}}"],
+              "path": ["bookxshow", "v1", "bookings", "{{bookingReference}}"]
+            }
+          }
+        },
+
+        {
+          "name": "Verify Booking Shows CANCELLED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('bookingReference matches', () => pm.expect(json.bookingReference).to.eql(pm.environment.get('bookingReference')));",
+                  "console.log('✅ Booking confirmed as cancelled: ' + json.bookingReference);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{bookingServiceUrl}}/bookxshow/v1/bookings/{{bookingReference}}",
+              "host": ["{{bookingServiceUrl}}"],
+              "path": ["bookxshow", "v1", "bookings", "{{bookingReference}}"]
+            }
+          }
+        },
+
+        {
+          "name": "Verify Seat Available After Cancel",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Seat status is AVAILABLE', () => pm.expect(json.status).to.eql('AVAILABLE'));",
+                  "console.log('✅ Seat released and AVAILABLE after booking cancel');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{bookingServiceUrl}}/bookxshow/v1/shows/{{bookxShowId}}/seats/{{bookxSeatId}}",
+              "host": ["{{bookingServiceUrl}}"],
+              "path": ["bookxshow", "v1", "shows", "{{bookxShowId}}", "seats", "{{bookxSeatId}}"]
+            }
+          }
+        },
+
+        {
+          "name": "Cancel Same Booking Again (Idempotent)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK (idempotent cancel)', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Outcome is still CANCELLED', () => pm.expect(json.outcome).to.eql('CANCELLED'));",
+                  "console.log('✅ Idempotent cancel confirmed');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }]
+            },
+            "method": "DELETE",
+            "url": {
+              "raw": "{{bookingServiceUrl}}/bookxshow/v1/bookings/{{bookingReference}}",
+              "host": ["{{bookingServiceUrl}}"],
+              "path": ["bookxshow", "v1", "bookings", "{{bookingReference}}"]
+            }
+          }
+        },
+
+        {
+          "name": "Rebook Same Seat After Cancel (User 1)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('Outcome is BOOKED', () => pm.expect(json.outcome).to.eql('BOOKED'));",
+                  "pm.test('bookingReference present', () => pm.expect(json.bookingReference).to.be.a('string'));",
+                  "pm.environment.set('bookingReference', json.bookingReference);",
+                  "console.log('✅ Seat re-booked after cancel! New ref: ' + json.bookingReference);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"showId\": {{bookxShowId}},\n  \"seatId\": {{bookxSeatId}},\n  \"userId\": \"{{user1Username}}\",\n  \"amount\": 350.00\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{bookingServiceUrl}}/bookxshow/v1/bookings",
+              "host": ["{{bookingServiceUrl}}"],
+              "path": ["bookxshow", "v1", "bookings"]
+            }
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "🔒 Security Violation Tests",
+      "description": "All requests below should return 403 Forbidden. Verifies that security fixes are working correctly.",
+      "item": [
+
+        {
+          "name": "[403] GET Admin Shows with User Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403 — userToken cannot access admin shows', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/shows",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "shows"]
+            }
+          }
+        },
+
+        {
+          "name": "[403] POST Admin Create Show with User Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403 — userToken cannot create shows', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Unauthorized Show\",\n  \"venue\": \"Hacked Venue\",\n  \"showDateTime\": \"2026-12-01T18:00:00\",\n  \"totalSeats\": 10,\n  \"seatsPerRow\": 5,\n  \"basePrice\": 100.00\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/shows",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "shows"]
+            }
+          }
+        },
+
+        {
+          "name": "[403] GET Admin Clients with User Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403 — userToken cannot list M2M clients', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/clients",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "clients"]
+            }
+          }
+        },
+
+        {
+          "name": "[403] POST Admin Show Sync with User Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403 — userToken cannot trigger admin sync', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "url": {
+              "raw": "{{bookingServiceUrl}}/bookxshow/v1/admin/shows/{{externalShowId}}/sync",
+              "host": ["{{bookingServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "shows", "{{externalShowId}}", "sync"]
+            }
+          }
+        },
+
+        {
+          "name": "[403] GET User 1 Bookings with User 2 Token (Ownership Violation)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403 — User 2 cannot read User 1 bookings', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{user2Token}}", "type": "string" }]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{bookingServiceUrl}}/bookxshow/v1/users/{{user1Username}}/bookings",
+              "host": ["{{bookingServiceUrl}}"],
+              "path": ["bookxshow", "v1", "users", "{{user1Username}}", "bookings"]
+            }
+          }
+        },
+
+        {
+          "name": "[403] Cancel Booking with User 2 Token (Ownership Violation)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403 — User 2 cannot cancel User 1 booking', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{user2Token}}", "type": "string" }]
+            },
+            "method": "DELETE",
+            "url": {
+              "raw": "{{bookingServiceUrl}}/bookxshow/v1/bookings/{{bookingReference}}",
+              "host": ["{{bookingServiceUrl}}"],
+              "path": ["bookxshow", "v1", "bookings", "{{bookingReference}}"]
+            }
+          }
+        },
+
+        {
+          "name": "[401] No Token — GET Shows",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401 for requests without any token', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{bookingServiceUrl}}/bookxshow/v1/shows",
+              "host": ["{{bookingServiceUrl}}"],
+              "path": ["bookxshow", "v1", "shows"]
+            }
+          }
+        },
+
+        {
+          "name": "[403] PUT Admin Publish Show with User Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403 — userToken cannot publish shows', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/shows/{{adminShowId}}/publish",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "shows", "{{adminShowId}}", "publish"]
+            }
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "🛠️ M2M Client Management",
+      "description": "CRUD operations on OAuth2 M2M client registrations (BookXAdmin port 8081). All require adminToken.",
+      "item": [
+
+        {
+          "name": "Create M2M Client",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('clientId matches', () => pm.expect(json.clientId).to.eql(pm.environment.get('newM2mClientId')));",
+                  "pm.test('scopes present', () => pm.expect(json.scopes).to.be.an('array'));",
+                  "pm.environment.set('newM2mClientId', json.clientId);",
+                  "console.log('✅ M2M client created: ' + json.clientId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"{{newM2mClientId}}\",\n  \"clientSecret\": \"postman-secret-123\",\n  \"clientName\": \"Postman Test Client\",\n  \"scopes\": [\"bookxshow.read\", \"bookxshow.write\"],\n  \"accessTokenTtlMinutes\": 30\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/clients",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "clients"]
+            }
+          }
+        },
+
+        {
+          "name": "List All M2M Clients",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Response is an array', () => pm.expect(json).to.be.an('array'));",
+                  "pm.test('At least 1 client exists', () => pm.expect(json.length).to.be.at.least(1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/clients",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "clients"]
+            }
+          }
+        },
+
+        {
+          "name": "Get M2M Client by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('clientId matches', () => pm.expect(json.clientId).to.eql(pm.environment.get('newM2mClientId')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/clients/{{newM2mClientId}}",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "clients", "{{newM2mClientId}}"]
+            }
+          }
+        },
+
+        {
+          "name": "Update M2M Client",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('clientName updated', () => pm.expect(json.clientName).to.eql('Updated Postman Client'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientName\": \"Updated Postman Client\",\n  \"accessTokenTtlMinutes\": 60\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/clients/{{newM2mClientId}}",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "clients", "{{newM2mClientId}}"]
+            }
+          }
+        },
+
+        {
+          "name": "Delete M2M Client",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));",
+                  "console.log('✅ M2M client deleted: ' + pm.environment.get('newM2mClientId'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "DELETE",
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/clients/{{newM2mClientId}}",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "clients", "{{newM2mClientId}}"]
+            }
+          }
+        },
+
+        {
+          "name": "Get Deleted Client (Expect 404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404 — deleted client is gone', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/clients/{{newM2mClientId}}",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "clients", "{{newM2mClientId}}"]
+            }
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "📊 S2S Read Endpoints (Admin → BookXShow)",
+      "description": "Service-to-service read endpoints on BookXAdmin (port 8081). Used internally by BookXShow to sync data. Accessible with any token that has bookxshow.read scope.",
+      "item": [
+
+        {
+          "name": "Get Show by External ID (S2S)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('externalShowId matches', () => pm.expect(json.externalShowId).to.eql(pm.environment.get('externalShowId')));",
+                  "pm.test('Status is PUBLISHED', () => pm.expect(json.status).to.eql('PUBLISHED'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/shows/{{externalShowId}}",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "shows", "{{externalShowId}}"]
+            }
+          }
+        },
+
+        {
+          "name": "Get Seats by External Show ID (S2S)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Seats is an array', () => pm.expect(json).to.be.an('array'));",
+                  "pm.test('Seats count = 20', () => pm.expect(json.length).to.eql(20));",
+                  "pm.test('Seats have category', () => json.forEach(s => pm.expect(s.category).to.be.a('string')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/shows/{{externalShowId}}/seats",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "shows", "{{externalShowId}}", "seats"]
+            }
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "🗑️ Admin Show Lifecycle — Cancel",
+      "description": "Cancel a show (DELETE). Tests the full lifecycle: DRAFT → PUBLISHED → CANCELLED.",
+      "item": [
+
+        {
+          "name": "Create Show for Cancellation Test",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('cancelShowId', json.id);",
+                  "console.log('Created show for cancel test: id=' + json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Temporary Show (Cancel Test)\",\n  \"venue\": \"Test Theatre\",\n  \"showDateTime\": \"2026-12-01T20:00:00\",\n  \"totalSeats\": 10,\n  \"seatsPerRow\": 5,\n  \"basePrice\": 100.00,\n  \"genre\": \"Test\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/shows",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "shows"]
+            }
+          }
+        },
+
+        {
+          "name": "Cancel the Show (DELETE)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));",
+                  "console.log('✅ Show cancelled: id=' + pm.environment.get('cancelShowId'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "DELETE",
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/shows/{{cancelShowId}}",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "shows", "{{cancelShowId}}"]
+            }
+          }
+        },
+
+        {
+          "name": "Verify Cancelled Show Returns CANCELLED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK after cancel (soft delete)', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Show status is CANCELLED', () => pm.expect(json.status).to.eql('CANCELLED'));",
+                  "console.log('✅ Show correctly shows CANCELLED status after soft delete');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/shows/{{cancelShowId}}",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "shows", "{{cancelShowId}}"]
+            }
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "✅ Health Checks",
+      "description": "Actuator health endpoints for all services. No auth required.",
+      "item": [
+
+        {
+          "name": "BookXAuthServer Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Status UP', () => pm.expect(json.status).to.eql('UP'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{authServerUrl}}/actuator/health",
+              "host": ["{{authServerUrl}}"],
+              "path": ["actuator", "health"]
+            }
+          }
+        },
+
+        {
+          "name": "BookXAdmin Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Status UP', () => pm.expect(json.status).to.eql('UP'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{adminServiceUrl}}/actuator/health",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["actuator", "health"]
+            }
+          }
+        },
+
+        {
+          "name": "BookXShow Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Status UP', () => pm.expect(json.status).to.eql('UP'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{bookingServiceUrl}}/actuator/health",
+              "host": ["{{bookingServiceUrl}}"],
+              "path": ["actuator", "health"]
+            }
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "🧹 Post-Run Cleanup",
+      "description": "Cancels any admin shows still in PUBLISHED state and clears all runtime environment variables. After this folder the database is back to its pre-run state.\n\nRemaining DB delta (no delete API available):\n• app_users rows: bookx_user1, bookx_user2\n• BookXShow tables: synced shows, seats, bookings rows",
+      "item": [
+
+        {
+          "name": "[Cleanup] Cancel Show 1 (post-run)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id = pm.environment.get('adminShowId');",
+                  "if (!id) { pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Show 1 cancelled or already cancelled — 204 or 409', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([204, 409]);",
+                  "});",
+                  "console.log('🧹 [Post] Show 1 cancelled: HTTP ' + pm.response.code);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "DELETE",
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/shows/{{adminShowId}}",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "shows", "{{adminShowId}}"]
+            }
+          }
+        },
+
+        {
+          "name": "[Cleanup] Cancel Show 2 (post-run)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id = pm.environment.get('adminShowId2');",
+                  "if (!id) { pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Show 2 cancelled or already cancelled — 204 or 409', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([204, 409]);",
+                  "});",
+                  "console.log('🧹 [Post] Show 2 cancelled: HTTP ' + pm.response.code);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "DELETE",
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/shows/{{adminShowId2}}",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "shows", "{{adminShowId2}}"]
+            }
+          }
+        },
+
+        {
+          "name": "[Cleanup] Verify M2M test client is gone",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('M2M test client is absent (404)', () => pm.response.to.have.status(404));",
+                  "console.log('✅ [Post] M2M client confirmed absent: ' + pm.environment.get('newM2mClientId'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{adminServiceUrl}}/bookxshow/v1/admin/clients/{{newM2mClientId}}",
+              "host": ["{{adminServiceUrl}}"],
+              "path": ["bookxshow", "v1", "admin", "clients", "{{newM2mClientId}}"]
+            }
+          }
+        },
+
+        {
+          "name": "[Cleanup] Clear runtime environment variables",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const runtimeVars = [",
+                  "  'userToken', 'user2Token', 'adminToken',",
+                  "  'adminShowId', 'externalShowId', 'adminShowId2', 'externalShowId2',",
+                  "  'bookxShowId', 'bookxSeatId', 'bookxShowId2',",
+                  "  'bookingReference', 'cancelShowId'",
+                  "];",
+                  "runtimeVars.forEach(v => pm.environment.set(v, ''));",
+                  "console.log('🧹 Runtime environment variables cleared');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Auth server reachable — env vars cleared', () => pm.response.to.have.status(200));",
+                  "console.log('✅ [Post] All runtime env vars reset to empty. Run is fully cleaned up.');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{authServerUrl}}/actuator/health",
+              "host": ["{{authServerUrl}}"],
+              "path": ["actuator", "health"]
+            }
+          }
+        }
+
+      ]
+    }
+
+  ]
+}

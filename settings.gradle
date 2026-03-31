@@ -1,0 +1,12 @@
+// ============================================================================
+// BookX — Root Gradle Settings
+// Multi-project build aggregating all backend services in boot order:
+//   BookXAuthServer → BookXGateway → BookXAdmin → BookXShow
+// ============================================================================
+
+rootProject.name = 'bookx'
+
+include 'BookXAuthServer'
+include 'BookXGateway'
+include 'BookXAdmin'
+include 'BookXShow'

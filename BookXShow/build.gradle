@@ -1,0 +1,179 @@
+plugins {
+    id 'java'
+    id 'jacoco'
+    id 'org.springframework.boot' version '3.2.3'
+    id 'io.spring.dependency-management' version '1.1.4'
+}
+
+group = 'com.bookxshow'
+version = '1.0.0-SNAPSHOT'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+}
+
+// ── Source sets ─────────────────────────────────────────────────────────────
+sourceSets {
+    integrationTest {
+        java {
+            srcDirs = ['src/integrationTest/java']
+        }
+        resources {
+            srcDirs = ['src/integrationTest/resources']
+        }
+        compileClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
+        runtimeClasspath  += output + compileClasspath
+    }
+}
+
+// ── Configurations ───────────────────────────────────────────────────────────
+configurations {
+    integrationTestImplementation.extendsFrom testImplementation
+    integrationTestRuntimeOnly.extendsFrom    testRuntimeOnly
+}
+
+// ── Dependencies ─────────────────────────────────────────────────────────────
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Spring Boot
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    // Security — OAuth2 Resource Server (JWT validation)
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    // Database
+    runtimeOnly 'org.postgresql:postgresql'
+
+    // Lombok
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    // Testing
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testRuntimeOnly 'com.h2database:h2'
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+
+    // Integration Testing
+    integrationTestImplementation 'org.springframework.boot:spring-boot-starter-test'
+    integrationTestRuntimeOnly 'com.h2database:h2'
+}
+
+// ── Test tasks ───────────────────────────────────────────────────────────────
+tasks.named('test') {
+    useJUnitPlatform()
+    description = 'Runs unit tests in src/test'
+    group       = 'verification'
+}
+
+tasks.register('integrationTest', Test) {
+    description      = 'Runs integration tests in src/integrationTest'
+    group            = 'verification'
+    testClassesDirs  = sourceSets.integrationTest.output.classesDirs
+    classpath        = sourceSets.integrationTest.runtimeClasspath
+    useJUnitPlatform()
+    shouldRunAfter('test')
+    testLogging {
+        events 'passed', 'skipped', 'failed'
+        showStandardStreams = false
+    }
+}
+
+check.dependsOn('integrationTest')
+
+// ── JaCoCo ───────────────────────────────────────────────────────────────────
+
+jacoco {
+    toolVersion = '0.8.11'
+}
+
+def jacocoExclusions = [
+    // Application entry point
+    'com/bookxshow/BookXShowApplication.class',
+
+    // Configuration classes (bean wiring / properties binding)
+    'com/bookxshow/config/AppConfig.class',
+    'com/bookxshow/config/BookingProperties*.class',
+
+    // DTOs — pure data-transfer objects with getters/setters
+    'com/bookxshow/dto/**',
+
+    // JPA entities — Lombok-generated getters/setters + JPA lifecycle callbacks
+    'com/bookxshow/entity/**',
+
+    // Enums — trivial constant definitions
+    'com/bookxshow/enums/**',
+
+    // Simple exception classes (only constructors delegating to super)
+    'com/bookxshow/exception/BookingNotFoundException.class',
+    'com/bookxshow/exception/SeatNotFoundException.class',
+    'com/bookxshow/exception/ShowNotFoundException.class',
+    'com/bookxshow/exception/SeatUnavailableException.class',
+    'com/bookxshow/exception/PaymentProcessingException.class',
+]
+
+tasks.named('test') {
+    useJUnitPlatform()
+    description = 'Runs unit tests in src/test'
+    group       = 'verification'
+    finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required  = true
+        html.required = true
+    }
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, excludes: jacocoExclusions)
+        }))
+    }
+}
+
+jacocoTestCoverageVerification {
+    dependsOn jacocoTestReport
+    violationRules {
+        rule {
+            limit {
+                counter = 'INSTRUCTION'
+                value   = 'COVEREDRATIO'
+                minimum = 0.92
+            }
+            limit {
+                counter = 'BRANCH'
+                value   = 'COVEREDRATIO'
+                minimum = 0.84
+            }
+        }
+    }
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, excludes: jacocoExclusions)
+        }))
+    }
+}
+
+check.dependsOn jacocoTestCoverageVerification
+
+// ── Local Development ──────────────────────────────────────────────────────
+tasks.register('bootRunLocal') {
+    description = 'Runs the Spring Boot application with the local profile'
+    group       = 'application'
+    doFirst {
+        tasks.bootRun.configure {
+            systemProperty 'spring.profiles.active', 'local'
+        }
+    }
+    finalizedBy 'bootRun'
+}

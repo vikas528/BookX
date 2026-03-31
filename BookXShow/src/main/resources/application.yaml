@@ -1,0 +1,93 @@
+# ============================================================================
+# BookXShow — Seat Booking Service Configuration
+# ============================================================================
+# All secrets and environment-specific values are injected via environment
+# variables. Defaults (after the colon) are for local development only.
+# ============================================================================
+
+spring:
+  application:
+    name: bookxshow
+
+  # ── OAuth2 Resource Server (inbound JWT validation) ─────────────────────
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${AUTH_SERVER_ISSUER_URI:http://localhost:9000}
+
+  # ── DataSource ──────────────────────────────────────────────────────────
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/bookingDb}
+    username: ${DB_USERNAME:bookxshow}
+    password: ${DB_PASSWORD:12345678}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}
+      idle-timeout: ${DB_IDLE_TIMEOUT:600000}
+      max-lifetime: ${DB_MAX_LIFETIME:1800000}
+
+  # ── JPA / Hibernate ─────────────────────────────────────────────────────
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    show-sql: ${JPA_SHOW_SQL:false}
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
+
+# ── Server ──────────────────────────────────────────────────────────────
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+
+# ── Actuator ────────────────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: ${ACTUATOR_HEALTH_DETAILS:when-authorized}
+
+# ── BookXShow Application Properties ───────────────────────────────────
+bookxshow:
+  booking:
+    seat-lock-ttl-ms: ${SEAT_LOCK_TTL_MS:30000}
+    # Safety-net sweep interval — 60 s is intentionally long because expired locks
+    # are self-healed inline inside SeatLockManager.lockSeat() on the hot path.
+    # This sweep only catches stale locks that were never re-contested.
+    lock-sweep-interval-ms: ${LOCK_SWEEP_INTERVAL_MS:60000}
+
+  # ── OAuth2 Client Credentials (for outbound service-to-service calls) ──
+  auth:
+    token-url: ${AUTH_TOKEN_URL:http://localhost:9000/oauth2/token}
+    client-id: ${AUTH_CLIENT_ID:bookxshow-service}
+    client-secret: ${AUTH_CLIENT_SECRET:service-secret}
+    scope: ${AUTH_SCOPE:bookxshow.read bookxshow.write}
+
+  admin-service:
+    base-url: ${ADMIN_SERVICE_URL:http://localhost:8081}
+    shows-uri: ${ADMIN_SERVICE_SHOWS_URI:/bookxshow/v1/shows}
+    timeout-ms: ${ADMIN_SERVICE_TIMEOUT_MS:10000}
+
+  payment:
+    stub-enabled: ${PAYMENT_STUB_ENABLED:true}
+    gateway-url: ${PAYMENT_GATEWAY_URL:http://localhost:8082}
+    charge-uri: ${PAYMENT_CHARGE_URI:/api/v1/payments/charge}
+    timeout-ms: ${PAYMENT_TIMEOUT_MS:30000}
+
+# ── Logging ─────────────────────────────────────────────────────────────
+logging:
+  level:
+    com.bookxshow: ${LOG_LEVEL:INFO}
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}

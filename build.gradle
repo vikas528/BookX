@@ -1,0 +1,97 @@
+// ============================================================================
+// BookX — Root Build File
+// ============================================================================
+// Aggregates all backend services in boot order:
+//   BookXAuthServer → BookXGateway → BookXAdmin → BookXShow
+//
+// Usage:
+//   ./gradlew buildAll        — builds all bootJars in order
+//   ./gradlew testAll         — runs unit tests for all services in order
+//   ./gradlew cleanAll        — cleans all build directories
+//   ./gradlew :BookXAdmin:bootJar — build a single service directly
+// ============================================================================
+
+// ── Shared properties across all sub-projects ────────────────────────────────
+allprojects {
+    group   = 'com.bookxshow'
+    version = '1.0.0-SNAPSHOT'
+
+    repositories {
+        mavenCentral()
+    }
+}
+
+// ── Boot-order constraint helpers ────────────────────────────────────────────
+// Ensures that when tasks from multiple services run together (e.g. in buildAll
+// or testAll), they are serialised in the defined boot order so that auth-server
+// is always compiled before gateway, gateway before admin, etc.
+//
+// NOTE: gradle.projectsEvaluated (not afterEvaluate) is required here because
+// cross-project task references via tasks.named() need ALL sub-projects to be
+// fully configured first. afterEvaluate only guarantees the root project is done.
+gradle.projectsEvaluated {
+    // bootJar ordering: AuthServer → Gateway → Admin → Show
+    project(':BookXGateway').tasks.named('bootJar').configure {
+        mustRunAfter project(':BookXAuthServer').tasks.named('bootJar')
+    }
+    project(':BookXAdmin').tasks.named('bootJar').configure {
+        mustRunAfter project(':BookXGateway').tasks.named('bootJar')
+    }
+    project(':BookXShow').tasks.named('bootJar').configure {
+        mustRunAfter project(':BookXAdmin').tasks.named('bootJar')
+    }
+
+    // test ordering mirrors boot order
+    project(':BookXGateway').tasks.named('test').configure {
+        mustRunAfter project(':BookXAuthServer').tasks.named('test')
+    }
+    project(':BookXAdmin').tasks.named('test').configure {
+        mustRunAfter project(':BookXGateway').tasks.named('test')
+    }
+    project(':BookXShow').tasks.named('test').configure {
+        mustRunAfter project(':BookXAdmin').tasks.named('test')
+    }
+
+    // clean ordering (no strict ordering needed, but mirrors the above for consistency)
+    project(':BookXGateway').tasks.named('clean').configure {
+        mustRunAfter project(':BookXAuthServer').tasks.named('clean')
+    }
+    project(':BookXAdmin').tasks.named('clean').configure {
+        mustRunAfter project(':BookXGateway').tasks.named('clean')
+    }
+    project(':BookXShow').tasks.named('clean').configure {
+        mustRunAfter project(':BookXAdmin').tasks.named('clean')
+    }
+}
+
+// ── buildAll — build all bootJars in boot order ──────────────────────────────
+tasks.register('buildAll') {
+    description = '''Builds bootJars for all services in boot order:
+        BookXAuthServer → BookXGateway → BookXAdmin → BookXShow'''
+    group       = 'bookx'
+    dependsOn   ':BookXAuthServer:bootJar',
+                ':BookXGateway:bootJar',
+                ':BookXAdmin:bootJar',
+                ':BookXShow:bootJar'
+}
+
+// ── testAll — run unit tests for all services in boot order ──────────────────
+tasks.register('testAll') {
+    description = '''Runs unit tests for all services in boot order:
+        BookXAuthServer → BookXGateway → BookXAdmin → BookXShow'''
+    group       = 'bookx'
+    dependsOn   ':BookXAuthServer:test',
+                ':BookXGateway:test',
+                ':BookXAdmin:test',
+                ':BookXShow:test'
+}
+
+// ── cleanAll — clean all build directories ───────────────────────────────────
+tasks.register('cleanAll') {
+    description = 'Cleans the build directories of all sub-projects'
+    group       = 'bookx'
+    dependsOn   ':BookXAuthServer:clean',
+                ':BookXGateway:clean',
+                ':BookXAdmin:clean',
+                ':BookXShow:clean'
+}

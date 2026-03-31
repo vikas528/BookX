@@ -1,0 +1,113 @@
+# ============================================================================
+# BookXShow — API Gateway Configuration
+# ============================================================================
+# Routes all traffic to downstream services after OAuth2 authentication.
+# Runs on port 8443 by default.
+# ============================================================================
+
+spring:
+  application:
+    name: bookxshow-gateway
+
+  # ── OAuth2 Client (Authorization Code flow for browsers) ──────────────
+  security:
+    oauth2:
+      client:
+        registration:
+          bookxshow-auth-server:
+            provider: bookxshow-auth-server
+            client-id: ${GATEWAY_CLIENT_ID:bookxshow-gateway}
+            client-secret: ${GATEWAY_CLIENT_SECRET:gateway-secret}
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope:
+              - openid
+              - profile
+              - bookxshow.read
+              - bookxshow.write
+              - bookxshow.admin
+        provider:
+          bookxshow-auth-server:
+            issuer-uri: ${AUTH_SERVER_ISSUER_URI:http://localhost:9000}
+
+      # ── OAuth2 Resource Server (JWT validation for API clients) ──────
+      resourceserver:
+        jwt:
+          issuer-uri: ${AUTH_SERVER_ISSUER_URI:http://localhost:9000}
+
+  # ── Spring Cloud Gateway Routes ──────────────────────────────────────
+  cloud:
+    gateway:
+      default-filters:
+        - TokenRelay=
+      routes:
+        # ── BookXShow (Booking Service) ────────────────────────────────
+        - id: bookxshow-booking-service
+          uri: ${BOOKING_SERVICE_URL:http://localhost:8080}
+          predicates:
+            - Path=/bookxshow/v1/bookings/**,/bookxshow/v1/shows/**
+          filters:
+            - StripPrefix=0
+
+        # ── BookXShow Admin Sync (specific route MUST come first) ────
+        - id: bookxshow-admin-sync
+          uri: ${BOOKING_SERVICE_URL:http://localhost:8080}
+          predicates:
+            - Path=/bookxshow/v1/admin/shows/*/sync
+          filters:
+            - StripPrefix=0
+
+        # ── AdminService (show CRUD + M2M client management) ──────────
+        - id: bookxshow-admin-service
+          uri: ${ADMIN_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/bookxshow/v1/admin/**
+          filters:
+            - StripPrefix=0
+
+        # ── Payment Service (future) ──────────────────────────────────
+        - id: bookxshow-payment-service
+          uri: ${PAYMENT_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/v1/payments/**
+          filters:
+            - StripPrefix=0
+
+        # ── Auth Server (public login/signup) ─────────────────────────
+        - id: bookxshow-auth-api
+          uri: ${AUTH_SERVER_URL:http://localhost:9000}
+          predicates:
+            - Path=/bookxshow/v1/auth/**
+          filters:
+            - StripPrefix=0
+
+        # ── OAuth2 Token Endpoint (M2M client_credentials) ──────────
+        - id: bookxshow-oauth2-token
+          uri: ${AUTH_SERVER_URL:http://localhost:9000}
+          predicates:
+            - Path=/oauth2/token
+          filters:
+            - StripPrefix=0
+
+# ── Server ──────────────────────────────────────────────────────────────
+server:
+  port: ${GATEWAY_PORT:8443}
+  shutdown: graceful
+
+# ── Actuator ────────────────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      show-details: always
+
+# ── Logging ─────────────────────────────────────────────────────────────
+logging:
+  level:
+    com.bookxshow: ${LOG_LEVEL:INFO}
+    org.springframework.cloud.gateway: ${LOG_LEVEL_GATEWAY:DEBUG}
+    org.springframework.security: ${LOG_LEVEL_SECURITY:DEBUG}
+    org.springframework.security.oauth2: ${LOG_LEVEL_OAUTH2:DEBUG}

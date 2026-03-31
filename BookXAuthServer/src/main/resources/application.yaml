@@ -1,0 +1,79 @@
+# ============================================================================
+# BookXShow — OAuth2 Authorization Server Configuration
+# ============================================================================
+# Issues JWT tokens for the BookXShow ecosystem.
+# Runs on port 9000 by default.
+# All secrets and environment-specific values are injected via environment
+# variables. Defaults (after the colon) are for local development only.
+# ============================================================================
+
+spring:
+  application:
+    name: bookxshow-auth-server
+
+  # ── DataSource (shared PostgreSQL with BookXShow) ─────────────────────
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/bookingDb}
+    username: ${DB_USERNAME:bookxshow}
+    password: ${DB_PASSWORD:12345678}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}
+
+  # ── SQL Schema Initialization ─────────────────────────────────────────
+  sql:
+    init:
+      mode: always
+
+  # ── JPA / Hibernate ─────────────────────────────────────────────────
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    show-sql: ${JPA_SHOW_SQL:false}
+    open-in-view: false
+    defer-datasource-initialization: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+# ── Server ──────────────────────────────────────────────────────────────
+server:
+  port: ${AUTH_SERVER_PORT:9000}
+  shutdown: graceful
+
+# ── Actuator ────────────────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+# ── BookXShow Auth Server Properties ───────────────────────────────────
+bookxshow:
+  auth:
+    issuer-uri: ${AUTH_ISSUER_URI:http://localhost:9000}
+    access-token-ttl-minutes: ${ACCESS_TOKEN_TTL_MINUTES:60}
+    refresh-token-ttl-hours: ${REFRESH_TOKEN_TTL_HOURS:8}
+    gateway-client-secret: ${GATEWAY_CLIENT_SECRET:gateway-secret}
+    service-client-secret: ${SERVICE_CLIENT_SECRET:service-secret}
+    m2m-client-secret: ${M2M_CLIENT_SECRET:m2m-secret}
+    gateway-client-id: ${GATEWAY_CLIENT_ID:bookxshow-gateway}
+    m2m-client-id: ${M2M_CLIENT_ID:bookxshow-m2m}
+    service-client-id: ${SERVICE_CLIENT_ID:bookxshow-service}
+    admin-client-id: ${ADMIN_CLIENT_ID:bookxshow-admin}
+    admin-client-secret: ${ADMIN_CLIENT_SECRET:admin-secret}
+    gateway-redirect-uri: ${GATEWAY_REDIRECT_URI:http://localhost:8443/login/oauth2/code/bookxshow-auth-server}
+    gateway-post-logout-uri: ${GATEWAY_POST_LOGOUT_URI:http://localhost:8443/}
+
+# ── Logging ─────────────────────────────────────────────────────────────
+logging:
+  level:
+    com.bookxshow: ${LOG_LEVEL:INFO}
+    org.springframework.security: ${LOG_LEVEL_SECURITY:INFO}
+    org.springframework.security.oauth2: ${LOG_LEVEL_OAUTH2:DEBUG}

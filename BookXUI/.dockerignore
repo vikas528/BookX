@@ -1,0 +1,26 @@
+# Node dependencies — never send to Docker daemon
+node_modules/
+
+# Vite/TypeScript build outputs
+dist/
+dist-ssr/
+*.local
+
+# IDE files
+.vscode/
+.idea/
+*.iml
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Test files
+coverage/
+**/*.test.ts
+**/*.spec.ts
